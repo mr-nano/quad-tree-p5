@@ -15,19 +15,43 @@ class Boundary {
     );
   }
 
-  subdivions() {
-    const halfWidth = this.width / 2;
-    const halfHeight = this.height / 2;
+  _topLeft() {
+    return new Boundary(this.x, this.y, this.width / 2, this.height / 2);
+  }
+
+  _topRight() {
+    return new Boundary(
+      this.x + this.width / 2,
+      this.y,
+      this.width / 2,
+      this.height / 2
+    );
+  }
+
+  _bottomLeft() {
+    return new Boundary(
+      this.x,
+      this.y + this.height / 2,
+      this.width / 2,
+      this.height / 2
+    );
+  }
+
+  _bottomRight() {
+    return new Boundary(
+      this.x + this.width / 2,
+      this.y + this.height / 2,
+      this.width / 2,
+      this.height / 2
+    );
+  }
+
+  subdivisions() {
     return [
-      new Boundary(this.x, this.y, halfWidth, halfHeight), // top left // north west
-      new Boundary(this.x + halfWidth, this.y, halfWidth, halfHeight), // top right // north east
-      new Boundary(this.x, this.y + halfHeight, halfWidth, halfHeight), // bottom left // south west
-      new Boundary(
-        this.x + halfWidth,
-        this.y + halfHeight,
-        halfWidth,
-        halfHeight
-      ), // bottom right // south east
+      this._topLeft(),
+      this._topRight(),
+      this._bottomLeft(),
+      this._bottomRight(),
     ];
   }
 }
@@ -52,22 +76,18 @@ class QuadTree {
 
     this._subdivide();
 
-    return (
-      this._northWest.insert(item) ||
-      this._northEast.insert(item) ||
-      this._southWest.insert(item) ||
-      this._southEast.insert(item)
-    );
+    return this._quadrants.find((quadrant) => quadrant.insert(item));
   }
 
   _subdivide() {
     if (!this._subdivided) {
-      const quadrantBoundaries = this._boundary.subdivions();
+      const makeQuadTreeFromBoundary = (boundary) => {
+        return new QuadTree(boundary, this._capacity);
+      };
 
-      this._northWest = new QuadTree(quadrantBoundaries[0], this._capacity);
-      this._northEast = new QuadTree(quadrantBoundaries[1], this._capacity);
-      this._southWest = new QuadTree(quadrantBoundaries[2], this._capacity);
-      this._southEast = new QuadTree(quadrantBoundaries[3], this._capacity);
+      this._quadrants = this._boundary
+        .subdivisions()
+        .map(makeQuadTreeFromBoundary);
 
       this._subdivided = true;
     }
@@ -79,6 +99,7 @@ class QuadTree {
 }
 
 function drawQuadTree(quadTree) {
+  // first draw boundary
   noFill();
   stroke(255, 0, 0);
   strokeWeight(2);
@@ -89,17 +110,16 @@ function drawQuadTree(quadTree) {
     quadTree._boundary.height
   );
 
+  // now draw points
   quadTree._items.forEach((item) => {
     fill(0, 255, 0);
     noStroke();
     ellipse(item.x, item.y, 8, 8);
   });
 
+  // recursively draw subquadrants
   if (quadTree._subdivided) {
-    drawQuadTree(quadTree._northWest);
-    drawQuadTree(quadTree._northEast);
-    drawQuadTree(quadTree._southWest);
-    drawQuadTree(quadTree._southEast);
+    quadTree._quadrants.forEach(drawQuadTree);
   }
 }
 
